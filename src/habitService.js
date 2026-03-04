@@ -9,27 +9,20 @@ export const HABITS_LIST = [
   { id: 'sleep_2230', name: 'Go to sleep at 22:30', xp: 10 },
 ];
 
-// 2. Funkcja do pobierania wyników z konkretnego dnia
-// dateStr to będzie tekst, np. "2024-03-04"
-export const getDayLog = async (dateStr) => {
-  const docRef = doc(db, 'dailyLogs', dateStr); // Wskazujemy na konkretny dokument w bazie
-  const docSnap = await getDoc(docRef); // Pobieramy go
+export const getDayLog = async (userId, dateStr) => {
+  const docRef = doc(db, 'users', userId, 'dailyLogs', dateStr);
+  const docSnap = await getDoc(docRef);
 
   if (docSnap.exists()) {
-    return docSnap.data(); // Zwracamy zapisane nawyki (np. { trening: true })
+    return docSnap.data();
   } else {
-    return {}; // Jeśli to nowy dzień i nic nie kliknąłeś, zwracamy pusty obiekt
+    return {};
   }
 };
 
-// 3. Funkcja do zaznaczania/odznaczania nawyku
-// habitId to np. "trening", isCompleted to true/false
-export const toggleHabit = async (dateStr, habitId, isCompleted) => {
-  const docRef = doc(db, 'dailyLogs', dateStr);
+export const toggleHabit = async (userId, dateStr, habitId, isCompleted) => {
+  const docRef = doc(db, 'users', userId, 'dailyLogs', dateStr);
   
-  // Używamy setDoc z opcją { merge: true }. To magiczna opcja!
-  // Oznacza: "Jeśli dokument nie istnieje, stwórz go. 
-  // Jeśli istnieje, zaktualizuj TYLKO ten jeden nawyk, nie usuwając reszty."
   await setDoc(docRef, {
     [habitId]: isCompleted
   }, { merge: true });

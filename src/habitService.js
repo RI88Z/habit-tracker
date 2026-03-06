@@ -3,9 +3,10 @@ import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const HABITS_LIST = [
   { id: 'wake_up630', name: 'Wake up at 6:30', xp: 10 },
+  { id: 'programming', name: 'Programming', xp: 40 },
+  { id: 'language', name: 'Learning a new language', xp: 30 },
   { id: 'train', name: 'Train', xp: 50 },
   { id: 'book', name: 'Reading a book', xp: 20 },
-  { id: 'programming', name: 'Programming', xp: 40 },
   { id: 'sleep_2230', name: 'Go to sleep at 22:30', xp: 10 },
 ];
 

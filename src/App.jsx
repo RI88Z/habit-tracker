@@ -98,7 +98,9 @@ function App() {
   let totalXP = 0;
   let completedHabitsCount = 0;
   let perfectDays = 0;
-  const totalPossibleHabits = dates.length * HABITS_LIST.length;
+
+  const maxDailyXp = HABITS_LIST.reduce((sum, habit) => sum + habit.xp, 0)
+  const maxTotalXP = dates.length * maxDailyXp;
 
   dates.forEach(date => {
     let dayCompletedCount = 0;
@@ -112,7 +114,7 @@ function App() {
     if (dayCompletedCount === HABITS_LIST.length && HABITS_LIST.length > 0) perfectDays++;
   });
 
-  const healthScore = totalPossibleHabits === 0 ? 0 : Math.round((completedHabitsCount / totalPossibleHabits) * 100);
+  const healthScore = maxTotalXP === 0 ? 0 : Math.round((totalXP / maxTotalXP) * 100);
 
   // Main Dashboard
   return (

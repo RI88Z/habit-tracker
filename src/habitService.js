@@ -2,12 +2,12 @@ import { db } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 
 export const HABITS_LIST = [
-  { id: 'wake_up630', name: 'Wake up at 6:30', xp: 10 },
+  { id: 'wake_up630', name: 'Wake up between 6:30-7:00', xp: 10 },
   { id: 'programming', name: 'Programming', xp: 40 },
   { id: 'language', name: 'Learning a new language', xp: 30 },
   { id: 'train', name: 'Train', xp: 50 },
   { id: 'book', name: 'Reading a book', xp: 20 },
-  { id: 'sleep_2230', name: 'Go to sleep at 22:30', xp: 10 },
+  { id: 'sleep_2230', name: 'Go to sleep between 22:30-23:00', xp: 10 },
 ];
 
 export const getDayLog = async (userId, dateStr) => {

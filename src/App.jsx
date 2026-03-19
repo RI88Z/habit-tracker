@@ -16,7 +16,6 @@ function App() {
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitXp, setNewHabitXp] = useState(20);
 
-  // --- STANY DLA EDYCJI NAWYKU ---
   const [editingHabitId, setEditingHabitId] = useState(null);
   const [editHabitName, setEditHabitName] = useState('');
   const [editHabitXp, setEditHabitXp] = useState('');
@@ -78,7 +77,6 @@ function App() {
     }
   };
 
-  // --- FUNKCJE EDYCJI ---
   const startEditing = (habit) => {
     setEditingHabitId(habit.id);
     setEditHabitName(habit.name);
@@ -92,23 +90,17 @@ function App() {
     await updateCustomHabit(user.uid, habitId, editHabitName, editHabitXp);
   };
 
-  // --- FUNKCJA DRAG AND DROP ---
   const handleDragEnd = async (result) => {
-    if (!result.destination) return; // Jeśli upuścisz poza tabelą
-    
+    if (!result.destination) return;
     const startIndex = result.source.index;
     const endIndex = result.destination.index;
     if (startIndex === endIndex) return;
 
-    // Przesuwamy element w tablicy
     const newHabits = Array.from(habits);
     const [removed] = newHabits.splice(startIndex, 1);
     newHabits.splice(endIndex, 0, removed);
 
-    // Błyskawiczna zmiana wyglądu w React
     setHabits(newHabits);
-
-    // Zapisujemy nową kolejność w Firebase w tle
     await updateHabitsOrder(user.uid, newHabits);
   };
 
@@ -199,10 +191,10 @@ function App() {
   });
 
   return (
-    <div className="min-h-screen bg-gray-900 text-white p-4 font-sans pb-12">
+    <div className="min-h-screen bg-gray-900 text-white p-4 font-sans pb-12 overflow-x-hidden">
       <div className="max-w-4xl mx-auto mt-8">
         
-        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4 text-center sm:text-left">
           <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">NO PAIN NO GAIN</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-400 hidden sm:block">Logged in as {user.displayName || user.email}</span>
@@ -217,16 +209,18 @@ function App() {
         
         {activeTab === 'habits' && (
           <div className="animate-fade-in">
-            <div className="overflow-x-auto bg-gray-800 rounded-xl shadow-2xl border border-gray-700 p-4 mb-8">
+            {/* Tabela - usunięto min-w-max, dodano płynne przewijanie */}
+            <div className="overflow-x-auto bg-gray-800 rounded-xl shadow-2xl border border-gray-700 mb-8 pb-2">
               <DragDropContext onDragEnd={handleDragEnd}>
                 <Droppable droppableId="habits">
                   {(provided) => (
-                    <table className="w-full text-left border-collapse min-w-max">
+                    <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr>
-                          <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 w-1/3">HABIT</th>
+                          {/* Sticky Kolumna - Nagłówek */}
+                          <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 sticky left-0 z-20 bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">HABIT</th>
                           {dates.map(date => (
-                            <th key={date} className="p-3 border-b border-gray-600 text-center text-sm font-medium text-gray-400">{date.slice(5)}</th>
+                            <th key={date} className="p-3 border-b border-gray-600 text-center text-sm font-medium text-gray-400 min-w-[60px]">{date.slice(5)}</th>
                           ))}
                           <th className="p-3 border-b border-gray-600"></th>
                         </tr>
@@ -241,19 +235,18 @@ function App() {
                               <tr
                                 ref={provided.innerRef}
                                 {...provided.draggableProps}
-                                className={`hover:bg-gray-750 transition-colors border-b border-gray-700/50 group ${snapshot.isDragging ? 'bg-gray-700 shadow-2xl' : ''}`}
+                                className={`transition-colors border-b border-gray-700/50 group ${snapshot.isDragging ? 'bg-gray-700 shadow-2xl' : 'hover:bg-gray-750'}`}
                                 style={{ ...provided.draggableProps.style, display: snapshot.isDragging ? 'table' : '' }}
                               >
-                                <td className="p-3 font-medium flex items-center gap-2">
-                                  {/* Uchwyt do przeciągania */}
+                                {/* Sticky Kolumna - Nawyki (Cień i tło) */}
+                                <td className={`p-3 font-medium flex items-center gap-2 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] transition-colors ${snapshot.isDragging ? 'bg-gray-700' : 'bg-gray-800 group-hover:bg-gray-750'}`}>
                                   <span {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-white p-1">
                                     ☰
                                   </span>
 
-                                  {/* Tryb Edycji vs Tryb Wyświetlania */}
                                   {editingHabitId === habit.id ? (
                                     <div className="flex flex-col gap-2 w-full ml-2">
-                                      <input type="text" value={editHabitName} onChange={e => setEditHabitName(e.target.value)} className="bg-gray-900 border border-gray-600 rounded p-1 text-white text-sm" />
+                                      <input type="text" value={editHabitName} onChange={e => setEditHabitName(e.target.value)} className="bg-gray-900 border border-gray-600 rounded p-1 text-white text-sm w-full" />
                                       <div className="flex gap-2">
                                         <input type="number" value={editHabitXp} onChange={e => setEditHabitXp(e.target.value)} className="bg-gray-900 border border-gray-600 rounded p-1 text-white w-16 text-sm" />
                                         <button onClick={() => saveEdit(habit.id)} className="bg-green-600 hover:bg-green-500 px-2 rounded text-xs">Save</button>
@@ -261,11 +254,12 @@ function App() {
                                       </div>
                                     </div>
                                   ) : (
-                                    <div className="ml-2 w-full flex justify-between items-center">
-                                      <div>
+                                    <div className="ml-2 w-full flex justify-between items-center gap-4">
+                                      <div className="truncate max-w-[120px] sm:max-w-[200px]" title={habit.name}>
                                         {habit.name} <span className="block text-xs text-blue-400 mt-1">+{habit.xp} XP</span>
                                       </div>
-                                      <button onClick={() => startEditing(habit)} className="text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">✎</button>
+                                      {/* Ikonka ołówka - widoczna na mobilce, pojawia się na hover na desktopie */}
+                                      <button onClick={() => startEditing(habit)} className="text-gray-400 hover:text-blue-400 opacity-100 sm:opacity-0 group-hover:opacity-100 transition-opacity p-1 flex-shrink-0">✎</button>
                                     </div>
                                   )}
                                 </td>
@@ -279,7 +273,8 @@ function App() {
                                   );
                                 })}
                                 <td className="p-3 text-center">
-                                  <button onClick={() => handleDeleteHabit(habit.id)} className="text-gray-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-2" title="Delete Habit">✕</button>
+                                  {/* Ikonka kosza - widoczna na mobilce, pojawia się na hover na desktopie */}
+                                  <button onClick={() => handleDeleteHabit(habit.id)} className="text-gray-500 hover:text-red-500 transition-colors opacity-100 sm:opacity-0 group-hover:opacity-100 p-2" title="Delete Habit">✕</button>
                                 </td>
                               </tr>
                             )}
@@ -293,12 +288,13 @@ function App() {
               </DragDropContext>
             </div>
 
-            <form onSubmit={handleAddHabit} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4 items-center">
-              <span className="text-gray-400 font-semibold whitespace-nowrap">Manage Habits:</span>
-              <input type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" required />
-              <div className="flex gap-2 w-full sm:w-auto">
-                <input type="number" min="0" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" title="XP Value" />
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap">Add</button>
+            {/* Wyśrodkowany formularz dodawania */}
+            <form onSubmit={handleAddHabit} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <span className="text-gray-400 font-semibold whitespace-nowrap text-center sm:text-left">Manage Habits:</span>
+              <input type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="w-full sm:flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center sm:text-left" required />
+              <div className="flex gap-2 w-full sm:w-auto justify-center">
+                <input type="number" min="0" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center" title="XP Value" />
+                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">Add</button>
               </div>
             </form>
 
@@ -322,20 +318,21 @@ function App() {
         {/* ==================== MISSIONS TAB ==================== */}
         {activeTab === 'missions' && (
           <div className="animate-fade-in">
-            <form onSubmit={handleAddMission} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4">
-              <input type="text" placeholder="New side quest..." value={newMissionTitle} onChange={(e) => setNewMissionTitle(e.target.value)} className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" required />
-              <div className="flex gap-4">
-                <input type="number" min="5" step="5" value={newMissionXp} onChange={(e) => setNewMissionXp(e.target.value)} className="w-24 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" title="XP Value" />
+            {/* Wyśrodkowany formularz dodawania misji */}
+            <form onSubmit={handleAddMission} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4 items-center justify-center">
+              <input type="text" placeholder="New side quest..." value={newMissionTitle} onChange={(e) => setNewMissionTitle(e.target.value)} className="w-full sm:flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500 text-center sm:text-left" required />
+              <div className="flex gap-4 w-full sm:w-auto justify-center">
+                <input type="number" min="5" step="5" value={newMissionXp} onChange={(e) => setNewMissionXp(e.target.value)} className="w-24 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500 text-center" title="XP Value" />
                 <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">Add Quest</button>
               </div>
             </form>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
-              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-purple-500 flex flex-col justify-center">
+              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-purple-500 flex flex-col justify-center text-center md:text-left">
                 <span className="text-gray-400 text-sm font-semibold uppercase mb-1">Quests Completed (This Month)</span>
                 <span className="text-3xl font-bold text-white">{monthlyMissionsCompleted}</span>
               </div>
-              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-blue-500 flex flex-col justify-center">
+              <div className="bg-gray-800 rounded-xl p-6 border border-gray-700 border-l-4 border-l-blue-500 flex flex-col justify-center text-center md:text-left">
                 <span className="text-gray-400 text-sm font-semibold uppercase mb-1">Quest XP Gained (This Month)</span>
                 <span className="text-3xl font-bold text-blue-400">+{monthlyMissionsXP} XP</span>
               </div>
@@ -347,12 +344,12 @@ function App() {
               ) : (
                 <ul>
                   {missions.map((mission) => (
-                    <li key={mission.id} className={`flex items-center justify-between p-4 border-b border-gray-700/50 last:border-0 transition-colors hover:bg-gray-750 ${mission.isCompleted ? 'opacity-60' : ''}`}>
-                      <div className="flex items-center gap-4 flex-grow">
+                    <li key={mission.id} className={`flex flex-col sm:flex-row items-center justify-between p-4 border-b border-gray-700/50 last:border-0 transition-colors hover:bg-gray-750 gap-4 ${mission.isCompleted ? 'opacity-60' : ''}`}>
+                      <div className="flex items-center gap-4 w-full sm:w-auto">
                         <button onClick={() => handleToggleMission(mission.id, mission.isCompleted)} className={`w-8 h-8 rounded-lg flex-shrink-0 flex items-center justify-center transition-all duration-300 ${mission.isCompleted ? 'bg-purple-500 text-white shadow-[0_0_10px_rgba(168,85,247,0.6)]' : 'bg-gray-700 text-transparent border border-gray-600 hover:border-purple-400'}`}>✓</button>
-                        <span className={`font-medium text-lg ${mission.isCompleted ? 'line-through text-gray-500' : 'text-gray-200'}`}>{mission.title}</span>
+                        <span className={`font-medium text-lg text-center sm:text-left w-full ${mission.isCompleted ? 'line-through text-gray-500' : 'text-gray-200'}`}>{mission.title}</span>
                       </div>
-                      <div className="flex items-center gap-4">
+                      <div className="flex items-center gap-4 justify-center w-full sm:w-auto">
                         <span className="bg-gray-900 text-blue-400 px-3 py-1 rounded-full text-sm font-bold border border-gray-700">+{mission.xp} XP</span>
                         <button onClick={() => handleDeleteMission(mission.id)} className="text-gray-500 hover:text-red-500 transition-colors p-2" title="Delete Quest">✕</button>
                       </div>

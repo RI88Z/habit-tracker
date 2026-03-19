@@ -216,7 +216,8 @@ function App() {
                     <table className="w-full text-left border-collapse whitespace-nowrap">
                       <thead>
                         <tr>
-                          <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 sticky left-0 z-20 bg-gray-800 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)]">HABIT</th>
+                          {/* NAPRAWA: Zwiększony z-index, podbity cień, dodana prawa ramka */}
+                          <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 sticky left-0 z-30 bg-gray-800 shadow-[4px_0_10px_-2px_rgba(0,0,0,0.7)] border-r border-gray-700">HABIT</th>
                           {dates.map(date => (
                             <th key={date} className="p-3 border-b border-gray-600 text-center text-sm font-medium text-gray-400 min-w-[60px]">{date.slice(5)}</th>
                           ))}
@@ -236,8 +237,8 @@ function App() {
                                 className={`transition-colors border-b border-gray-700/50 group ${snapshot.isDragging ? 'bg-gray-700 shadow-2xl' : 'hover:bg-gray-750'}`}
                                 style={{ ...provided.draggableProps.style, display: snapshot.isDragging ? 'table' : '' }}
                               >
-                                {/* NAPRAWIONE: Zabrano klasę flex z elementu <td> i przeniesiono do wewnętrznego diva! */}
-                                <td className={`p-0 sticky left-0 z-10 shadow-[2px_0_5px_-2px_rgba(0,0,0,0.5)] transition-colors ${snapshot.isDragging ? 'bg-gray-700' : 'bg-gray-800 group-hover:bg-gray-750'}`}>
+                                {/* NAPRAWA: Zwiększony z-index, podbity cień, dodana prawa ramka, bg-clip-padding */}
+                                <td className={`p-0 sticky left-0 z-20 border-r border-gray-700 bg-clip-padding shadow-[4px_0_10px_-2px_rgba(0,0,0,0.7)] transition-colors ${snapshot.isDragging ? 'bg-gray-700' : 'bg-gray-800 group-hover:bg-gray-750'}`}>
                                   <div className="p-3 font-medium flex items-center gap-2 min-w-[180px]">
                                     <span {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-white p-1">
                                       ☰
@@ -290,7 +291,7 @@ function App() {
               <span className="text-gray-400 font-semibold whitespace-nowrap text-center sm:text-left">Manage Habits:</span>
               <input type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="w-full sm:flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center sm:text-left" required />
               <div className="flex gap-2 w-full sm:w-auto justify-center">
-                <input type="number" min="0" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center" title="XP Value" />
+                <input type="number" min="1" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center" title="XP Value" />
                 <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">Add</button>
               </div>
             </form>

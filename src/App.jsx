@@ -291,7 +291,7 @@ function App() {
               <span className="text-gray-400 font-semibold whitespace-nowrap text-center sm:text-left">Manage Habits:</span>
               <input type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="w-full sm:flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center sm:text-left" required />
               <div className="flex gap-2 w-full sm:w-auto justify-center">
-                <input type="number" min="1" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center" title="XP Value" />
+                <input type="number" min="0" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-blue-500 text-center" title="XP Value" />
                 <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">Add</button>
               </div>
             </form>

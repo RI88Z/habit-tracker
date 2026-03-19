@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
-import { getCustomHabits, addCustomHabit, deleteCustomHabit, getDayLog, toggleHabit } from './habitService';
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import { getCustomHabits, addCustomHabit, deleteCustomHabit, updateCustomHabit, updateHabitsOrder, getDayLog, toggleHabit } from './habitService';
 import { getMissions, addMission, toggleMission, deleteMission } from './missionService';
 import { auth, provider } from './firebase';
 import { signInWithPopup, signOut, onAuthStateChanged } from 'firebase/auth';
@@ -11,16 +12,19 @@ function App() {
   const [loadingAuth, setLoadingAuth] = useState(true);
   const [activeTab, setActiveTab] = useState('habits');
 
-  // --- NOWE STANY: Dynamiczne nawyki ---
   const [habits, setHabits] = useState([]);
   const [newHabitName, setNewHabitName] = useState('');
   const [newHabitXp, setNewHabitXp] = useState(20);
+
+  // --- STANY DLA EDYCJI NAWYKU ---
+  const [editingHabitId, setEditingHabitId] = useState(null);
+  const [editHabitName, setEditHabitName] = useState('');
+  const [editHabitXp, setEditHabitXp] = useState('');
 
   const [missions, setMissions] = useState([]);
   const [newMissionTitle, setNewMissionTitle] = useState('');
   const [newMissionXp, setNewMissionXp] = useState(50);
 
-  // 1. AUTH
   useEffect(() => {
     const unsubscribe = onAuthStateChanged(auth, (currentUser) => {
       setUser(currentUser);
@@ -32,7 +36,6 @@ function App() {
   const handleLogin = () => signInWithPopup(auth, provider);
   const handleLogout = () => signOut(auth);
 
-  // 2. GENEROWANIE DAT
   useEffect(() => {
     const generatedDates = [];
     for (let i = 6; i >= 0; i--) {
@@ -43,15 +46,11 @@ function App() {
     setDates(generatedDates);
   }, []);
 
-  // 3. POBIERANIE NAWYKÓW I DANYCH (Habits)
   const fetchUserHabitsAndLogs = async () => {
     if (!user || dates.length === 0) return;
-    
-    // Pobierz dynamiczną listę nawyków
     const userHabits = await getCustomHabits(user.uid);
     setHabits(userHabits);
 
-    // Pobierz odznaczone kwadraciki
     const newLogs = {};
     for (const date of dates) {
       newLogs[date] = await getDayLog(user.uid, date);
@@ -60,41 +59,67 @@ function App() {
   };
 
   useEffect(() => {
-    if (activeTab === 'habits') {
-      fetchUserHabitsAndLogs();
-    }
+    if (activeTab === 'habits') fetchUserHabitsAndLogs();
   }, [dates, user, activeTab]);
 
-  // --- ZARZĄDZANIE NAWYKAMI (Nowe funkcje) ---
   const handleAddHabit = async (e) => {
     e.preventDefault();
     if (!newHabitName.trim()) return;
-    await addCustomHabit(user.uid, newHabitName, newHabitXp);
+    await addCustomHabit(user.uid, newHabitName, newHabitXp, habits.length);
     setNewHabitName('');
     setNewHabitXp(20);
-    fetchUserHabitsAndLogs(); // Odśwież listę
+    fetchUserHabitsAndLogs();
   };
 
   const handleDeleteHabit = async (habitId) => {
-    if (window.confirm("Delete this habit? It won't erase past stats, but will remove it from the list.")) {
+    if (window.confirm("Delete this habit?")) {
       await deleteCustomHabit(user.uid, habitId);
-      fetchUserHabitsAndLogs(); // Odśwież listę
+      fetchUserHabitsAndLogs();
     }
+  };
+
+  // --- FUNKCJE EDYCJI ---
+  const startEditing = (habit) => {
+    setEditingHabitId(habit.id);
+    setEditHabitName(habit.name);
+    setEditHabitXp(habit.xp);
+  };
+
+  const saveEdit = async (habitId) => {
+    if (!editHabitName.trim()) return;
+    setHabits(habits.map(h => h.id === habitId ? { ...h, name: editHabitName, xp: Number(editHabitXp) } : h));
+    setEditingHabitId(null);
+    await updateCustomHabit(user.uid, habitId, editHabitName, editHabitXp);
+  };
+
+  // --- FUNKCJA DRAG AND DROP ---
+  const handleDragEnd = async (result) => {
+    if (!result.destination) return; // Jeśli upuścisz poza tabelą
+    
+    const startIndex = result.source.index;
+    const endIndex = result.destination.index;
+    if (startIndex === endIndex) return;
+
+    // Przesuwamy element w tablicy
+    const newHabits = Array.from(habits);
+    const [removed] = newHabits.splice(startIndex, 1);
+    newHabits.splice(endIndex, 0, removed);
+
+    // Błyskawiczna zmiana wyglądu w React
+    setHabits(newHabits);
+
+    // Zapisujemy nową kolejność w Firebase w tle
+    await updateHabitsOrder(user.uid, newHabits);
   };
 
   const handleToggleHabit = async (date, habitId) => {
     if (!user) return;
     const currentValue = logs[date]?.[habitId] || false;
     const newValue = !currentValue;
-
-    setLogs(prev => ({
-      ...prev,
-      [date]: { ...prev[date], [habitId]: newValue }
-    }));
+    setLogs(prev => ({ ...prev, [date]: { ...prev[date], [habitId]: newValue } }));
     await toggleHabit(user.uid, date, habitId, newValue);
   };
 
-  // --- MISSIONS LOGIC ---
   const fetchUserMissions = async () => {
     if (!user) return;
     const data = await getMissions(user.uid);
@@ -121,13 +146,12 @@ function App() {
   };
 
   const handleDeleteMission = async (missionId) => {
-    if (window.confirm("Are you sure you want to delete this mission?")) {
+    if (window.confirm("Delete this mission?")) {
       setMissions(missions.filter(m => m.id !== missionId));
       await deleteMission(user.uid, missionId);
     }
   };
 
-  // --- EKRANY ŁADOWANIA I LOGOWANIA ---
   if (loadingAuth) return <div className="min-h-screen bg-gray-900 flex items-center justify-center text-white">Loading...</div>;
 
   if (!user) {
@@ -142,10 +166,8 @@ function App() {
     );
   }
 
-  // --- STATS CALCULATION (HABITS) ---
   let totalHabitXP = 0;
   let perfectDays = 0;
-  // Używamy teraz dynamicznej zmiennej 'habits' zamiast HABITS_LIST
   const maxDailyXP = habits.reduce((sum, habit) => sum + habit.xp, 0);
   const maxTotalXP = dates.length * maxDailyXP;
 
@@ -161,7 +183,6 @@ function App() {
   });
   const healthScore = maxTotalXP === 0 ? 0 : Math.round((totalHabitXP / maxTotalXP) * 100);
 
-  // --- STATS CALCULATION (MISSIONS) ---
   const currentMonth = new Date().getMonth();
   const currentYear = new Date().getFullYear();
   let monthlyMissionsCompleted = 0;
@@ -181,93 +202,103 @@ function App() {
     <div className="min-h-screen bg-gray-900 text-white p-4 font-sans pb-12">
       <div className="max-w-4xl mx-auto mt-8">
         
-        {/* TOP BAR */}
         <div className="flex flex-col sm:flex-row justify-between items-center mb-6 gap-4">
           <h1 className="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-green-400 to-blue-500">NO PAIN NO GAIN</h1>
           <div className="flex items-center gap-4">
             <span className="text-sm text-gray-400 hidden sm:block">Logged in as {user.displayName || user.email}</span>
-            <button onClick={handleLogout} className="text-sm px-4 py-2 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 hover:bg-red-500 hover:text-white transition-colors">
-              Sign out
-            </button>
+            <button onClick={handleLogout} className="text-sm px-4 py-2 bg-gray-800 text-gray-300 rounded-lg border border-gray-700 hover:bg-red-500 hover:text-white transition-colors">Sign out</button>
           </div>
         </div>
 
-        {/* NAVIGATION TABS */}
         <div className="flex space-x-2 mb-8 bg-gray-800 p-1 rounded-xl">
-          <button onClick={() => setActiveTab('habits')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'habits' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}>
-            Daily Habits
-          </button>
-          <button onClick={() => setActiveTab('missions')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'missions' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' : 'text-gray-400 hover:text-white'}`}>
-            Side Quests
-          </button>
+          <button onClick={() => setActiveTab('habits')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'habits' ? 'bg-gray-700 text-white shadow' : 'text-gray-400 hover:text-white'}`}>Daily Habits</button>
+          <button onClick={() => setActiveTab('missions')} className={`flex-1 py-3 text-sm font-bold rounded-lg transition-all ${activeTab === 'missions' ? 'bg-purple-600 text-white shadow-[0_0_15px_rgba(147,51,234,0.4)]' : 'text-gray-400 hover:text-white'}`}>Side Quests</button>
         </div>
         
-        {/* ==================== HABITS TAB ==================== */}
         {activeTab === 'habits' && (
           <div className="animate-fade-in">
-            {/* Tabela Nawyków */}
             <div className="overflow-x-auto bg-gray-800 rounded-xl shadow-2xl border border-gray-700 p-4 mb-8">
-              <table className="w-full text-left border-collapse min-w-max">
-                <thead>
-                  <tr>
-                    <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 w-1/3">HABIT</th>
-                    {dates.map(date => (
-                      <th key={date} className="p-3 border-b border-gray-600 text-center text-sm font-medium text-gray-400">
-                        {date.slice(5)}
-                      </th>
-                    ))}
-                    <th className="p-3 border-b border-gray-600"></th> {/* Pusta kolumna na kosz */}
-                  </tr>
-                </thead>
-                <tbody>
-                  {habits.length === 0 && (
-                    <tr><td colSpan={dates.length + 2} className="p-4 text-center text-gray-500">Add your first habit below!</td></tr>
+              <DragDropContext onDragEnd={handleDragEnd}>
+                <Droppable droppableId="habits">
+                  {(provided) => (
+                    <table className="w-full text-left border-collapse min-w-max">
+                      <thead>
+                        <tr>
+                          <th className="p-3 border-b border-gray-600 font-semibold text-gray-300 w-1/3">HABIT</th>
+                          {dates.map(date => (
+                            <th key={date} className="p-3 border-b border-gray-600 text-center text-sm font-medium text-gray-400">{date.slice(5)}</th>
+                          ))}
+                          <th className="p-3 border-b border-gray-600"></th>
+                        </tr>
+                      </thead>
+                      <tbody {...provided.droppableProps} ref={provided.innerRef}>
+                        {habits.length === 0 && (
+                          <tr><td colSpan={dates.length + 2} className="p-4 text-center text-gray-500">Add your first habit below!</td></tr>
+                        )}
+                        {habits.map((habit, index) => (
+                          <Draggable key={habit.id} draggableId={habit.id} index={index}>
+                            {(provided, snapshot) => (
+                              <tr
+                                ref={provided.innerRef}
+                                {...provided.draggableProps}
+                                className={`hover:bg-gray-750 transition-colors border-b border-gray-700/50 group ${snapshot.isDragging ? 'bg-gray-700 shadow-2xl' : ''}`}
+                                style={{ ...provided.draggableProps.style, display: snapshot.isDragging ? 'table' : '' }}
+                              >
+                                <td className="p-3 font-medium flex items-center gap-2">
+                                  {/* Uchwyt do przeciągania */}
+                                  <span {...provided.dragHandleProps} className="cursor-grab active:cursor-grabbing text-gray-500 hover:text-white p-1">
+                                    ☰
+                                  </span>
+
+                                  {/* Tryb Edycji vs Tryb Wyświetlania */}
+                                  {editingHabitId === habit.id ? (
+                                    <div className="flex flex-col gap-2 w-full ml-2">
+                                      <input type="text" value={editHabitName} onChange={e => setEditHabitName(e.target.value)} className="bg-gray-900 border border-gray-600 rounded p-1 text-white text-sm" />
+                                      <div className="flex gap-2">
+                                        <input type="number" value={editHabitXp} onChange={e => setEditHabitXp(e.target.value)} className="bg-gray-900 border border-gray-600 rounded p-1 text-white w-16 text-sm" />
+                                        <button onClick={() => saveEdit(habit.id)} className="bg-green-600 hover:bg-green-500 px-2 rounded text-xs">Save</button>
+                                        <button onClick={() => setEditingHabitId(null)} className="bg-gray-600 hover:bg-gray-500 px-2 rounded text-xs">Cancel</button>
+                                      </div>
+                                    </div>
+                                  ) : (
+                                    <div className="ml-2 w-full flex justify-between items-center">
+                                      <div>
+                                        {habit.name} <span className="block text-xs text-blue-400 mt-1">+{habit.xp} XP</span>
+                                      </div>
+                                      <button onClick={() => startEditing(habit)} className="text-gray-500 hover:text-blue-400 opacity-0 group-hover:opacity-100 transition-opacity p-1">✎</button>
+                                    </div>
+                                  )}
+                                </td>
+                                
+                                {dates.map(date => {
+                                  const isDone = logs[date]?.[habit.id] || false;
+                                  return (
+                                    <td key={date} className="p-3 text-center">
+                                      <button onClick={() => handleToggleHabit(date, habit.id)} className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all duration-300 transform hover:scale-110 active:scale-90 ${isDone ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-gray-700 text-transparent hover:bg-gray-600'}`}>✓</button>
+                                    </td>
+                                  );
+                                })}
+                                <td className="p-3 text-center">
+                                  <button onClick={() => handleDeleteHabit(habit.id)} className="text-gray-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-2" title="Delete Habit">✕</button>
+                                </td>
+                              </tr>
+                            )}
+                          </Draggable>
+                        ))}
+                        {provided.placeholder}
+                      </tbody>
+                    </table>
                   )}
-                  {habits.map(habit => (
-                    <tr key={habit.id} className="hover:bg-gray-750 transition-colors border-b border-gray-700/50 last:border-0 group">
-                      <td className="p-3 font-medium">
-                        {habit.name} <span className="block text-xs text-blue-400 mt-1">+{habit.xp} XP</span>
-                      </td>
-                      {dates.map(date => {
-                        const isDone = logs[date]?.[habit.id] || false;
-                        return (
-                          <td key={date} className="p-3 text-center">
-                            <button
-                              onClick={() => handleToggleHabit(date, habit.id)}
-                              className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto transition-all duration-300 transform hover:scale-110 active:scale-90 ${
-                                isDone ? 'bg-green-500 text-white shadow-[0_0_15px_rgba(34,197,94,0.6)]' : 'bg-gray-700 text-transparent hover:bg-gray-600'
-                              }`}
-                            >✓</button>
-                          </td>
-                        );
-                      })}
-                      <td className="p-3 text-center">
-                        {/* Przycisk usuwania widoczny tylko po najechaniu myszką */}
-                        <button onClick={() => handleDeleteHabit(habit.id)} className="text-gray-600 hover:text-red-500 transition-colors opacity-0 group-hover:opacity-100 p-2" title="Delete Habit">
-                          ✕
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+                </Droppable>
+              </DragDropContext>
             </div>
 
-            {/* Edytor Nawyków (Formularz) */}
             <form onSubmit={handleAddHabit} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4 items-center">
               <span className="text-gray-400 font-semibold whitespace-nowrap">Manage Habits:</span>
-              <input 
-                type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)}
-                className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" required
-              />
+              <input type="text" placeholder="New daily habit..." value={newHabitName} onChange={(e) => setNewHabitName(e.target.value)} className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" required />
               <div className="flex gap-2 w-full sm:w-auto">
-                <input 
-                  type="number" min="1" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)}
-                  className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" title="XP Value"
-                />
-                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap">
-                  Add
-                </button>
+                <input type="number" min="0" step="5" value={newHabitXp} onChange={(e) => setNewHabitXp(e.target.value)} className="w-20 bg-gray-900 border border-gray-600 rounded-lg p-2 text-white focus:outline-none focus:border-blue-500" title="XP Value" />
+                <button type="submit" className="bg-blue-600 hover:bg-blue-500 text-white font-bold py-2 px-6 rounded-lg transition-colors whitespace-nowrap">Add</button>
               </div>
             </form>
 
@@ -288,22 +319,14 @@ function App() {
           </div>
         )}
 
-        {/* ==================== MISSIONS TAB (Bez Zmian) ==================== */}
+        {/* ==================== MISSIONS TAB ==================== */}
         {activeTab === 'missions' && (
           <div className="animate-fade-in">
             <form onSubmit={handleAddMission} className="bg-gray-800 p-6 rounded-xl border border-gray-700 mb-8 flex flex-col sm:flex-row gap-4">
-              <input 
-                type="text" placeholder="New side quest..." value={newMissionTitle} onChange={(e) => setNewMissionTitle(e.target.value)}
-                className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" required
-              />
+              <input type="text" placeholder="New side quest..." value={newMissionTitle} onChange={(e) => setNewMissionTitle(e.target.value)} className="flex-grow bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" required />
               <div className="flex gap-4">
-                <input 
-                  type="number" min="5" step="5" value={newMissionXp} onChange={(e) => setNewMissionXp(e.target.value)}
-                  className="w-24 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" title="XP Value"
-                />
-                <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">
-                  Add Quest
-                </button>
+                <input type="number" min="5" step="5" value={newMissionXp} onChange={(e) => setNewMissionXp(e.target.value)} className="w-24 bg-gray-900 border border-gray-600 rounded-lg p-3 text-white focus:outline-none focus:border-purple-500" title="XP Value" />
+                <button type="submit" className="bg-purple-600 hover:bg-purple-500 text-white font-bold py-3 px-6 rounded-lg transition-colors whitespace-nowrap">Add Quest</button>
               </div>
             </form>
 
